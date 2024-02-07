@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace LogClean
 {
@@ -26,9 +27,9 @@ namespace LogClean
 
         static int RunOptions(Options opts)
         {
-            Log.Logger.Information("-------------------- Log Clean Command Start --------------------");
+            Log.Logger.Information($"{CurrentProgramName} Command Start".DashedLine());
             if (opts.SimulationMode)
-                Log.Logger.Information("------ SIMULATION MODE ON (no files will be affected) --------");
+                Log.Logger.Information("SIMULATION MODE ON (no files will be affected)".DashedLine());
 
             int exitCode = (int)ExitCode.Success;
             try
@@ -43,7 +44,7 @@ namespace LogClean
                     {
                         Log.Logger.Verbose($"Processing {logFile}");
                         FileInfo fi = new FileInfo(logFile);
-                        TimeSpan ts = DateTime.Now - fi.LastWriteTime;
+                        TimeSpan ts = DateTime.UtcNow - fi.LastWriteTimeUtc;
                         int daysOld = (int)ts.TotalDays;
                         Log.Logger.Verbose($"{logFile} was modified {daysOld} day(s) ago");
                         if (daysOld > opts.KeepDays)
@@ -55,7 +56,7 @@ namespace LogClean
                             else
                             {
                                 Log.Logger.Information($"deleting {logFile}");
-                                //add deletion code here
+                                File.Delete(logFile);
                             }
                         }
                     }
@@ -77,7 +78,7 @@ namespace LogClean
                 exitCode = (int)ExitCode.ApplicationError;
             }
 
-            Log.Logger.Information("-------------------- Program End --------------------");
+            Log.Logger.Information($"{CurrentProgramName} Command End".DashedLine());
             return exitCode;
         }
         static int HandleParseError(IEnumerable<Error> errors)
@@ -112,7 +113,9 @@ namespace LogClean
         {
             Log.Logger.Error((Exception)e.ExceptionObject, "Unhandled exception");
             if (e.IsTerminating)
-                Log.Logger.Information("-------------------- Program End --------------------");
+                Log.Logger.Information($"{CurrentProgramName} Command End".DashedLine());
         }
+
+        private static string CurrentProgramName => Assembly.GetExecutingAssembly().GetName().Name;
     }
 }
