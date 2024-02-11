@@ -34,7 +34,7 @@ namespace LogClean
             int exitCode = (int)ExitCode.Success;
             try
             {
-                ValidateOptions(opts);
+                Validator.ValidateOptions(opts);
                 SearchOption searchOption = opts.RecursiveMode ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
                 string[] logFiles = Directory.GetFiles(opts.LogDirectory, opts.FilePattern, searchOption);
                 Log.Logger.Debug($"Found {logFiles.Length} files");
@@ -87,26 +87,6 @@ namespace LogClean
                 return (int)ExitCode.Success;
 
             return (int)ExitCode.InvalidArguments;
-        }
-
-        private static void ValidateOptions(Options opts)
-        {
-            if (opts == null)
-                throw new ArgumentNullException(nameof(opts));
-
-            string logDirectory = opts.LogDirectory;
-            var allowedDirectories = MySettings.Default.AllowedFolders.Cast<string>();
-            if (!allowedDirectories.Any(x => x.Equals(logDirectory, StringComparison.OrdinalIgnoreCase)))
-            {
-                throw new OptionValidationException($"{logDirectory} is not in the allowed list");
-            }
-
-            int keepDays = opts.KeepDays;
-            int allowedKeepDaysMin = MySettings.Default.AllowedKeepDaysMin;
-            if (keepDays < allowedKeepDaysMin)
-            {
-                throw new OptionValidationException($"KeepDays should not be less than {allowedKeepDaysMin}");
-            }
         }
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
