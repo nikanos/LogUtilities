@@ -34,6 +34,8 @@ namespace LogClean
             Log.Logger.Information($"Command Line Options: {JsonConvert.SerializeObject(opts, Formatting.Indented)}");
 
             int exitCode = (int)ExitCode.Success;
+            int cleanFileCounter = 0;
+            int cleanFolderCounter = 0;
             try
             {
                 Validator.ValidateOptions(opts);
@@ -60,6 +62,7 @@ namespace LogClean
                                 Log.Logger.Verbose($"deleting {logFile}");
                                 File.Delete(logFile);
                             }
+                            cleanFileCounter++;
                         }
                     }
                     catch (Exception ex)
@@ -89,6 +92,7 @@ namespace LogClean
                                 Log.Logger.Verbose($"deleting empty directory {dir}");
                                 Directory.Delete(di.FullName);
                             }
+                            cleanFolderCounter++;
                         }
                     }
                 }
@@ -104,6 +108,14 @@ namespace LogClean
                 exitCode = (int)ExitCode.ApplicationError;
             }
 
+            if(opts.SimulationMode)
+            {
+                Log.Logger.Information($"Simulated deletion of {cleanFileCounter} file(s) and {cleanFolderCounter} folder(s)");
+            }
+            else
+            {
+                Log.Logger.Information($"deletion of {cleanFileCounter} file(s) and {cleanFolderCounter} folder(s)");
+            }
             Log.Logger.Information($"{CurrentProgramName} Command End".DashedLine());
             return exitCode;
         }
