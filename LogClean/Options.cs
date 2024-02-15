@@ -19,5 +19,7 @@ namespace LogClean
         [Option('k', "keep-days", HelpText = "Days to keep logs.", Default = Constants.DEFAULT_KEEP_DAYS)]
         public int KeepDays { get; set; }
 
+        [Option('e', "empty-subdirectories-clean", HelpText = "Delete empty subdirectories.")]
+        public bool  EmptySubdirectoriesClean { get; set; }
     }
 }

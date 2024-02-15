@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -30,6 +31,7 @@ namespace LogClean
             Log.Logger.Information($"{CurrentProgramName} Command Start".DashedLine());
             if (opts.SimulationMode)
                 Log.Logger.Information("SIMULATION MODE ON (no files will be affected)".DashedLine());
+            Log.Logger.Information($"Command Line Options: {JsonConvert.SerializeObject(opts, Formatting.Indented)}");
 
             int exitCode = (int)ExitCode.Success;
             try
@@ -37,7 +39,7 @@ namespace LogClean
                 Validator.ValidateOptions(opts);
                 SearchOption searchOption = opts.RecursiveMode ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
                 string[] logFiles = Directory.GetFiles(opts.LogDirectory, opts.FilePattern, searchOption);
-                Log.Logger.Debug($"Found {logFiles.Length} files");
+                Log.Logger.Information($"Found {logFiles.Length} files");
                 foreach (string logFile in logFiles)
                 {
                     try
@@ -51,11 +53,11 @@ namespace LogClean
                         {
                             if (opts.SimulationMode)
                             {
-                                Log.Logger.Information($"Simulating deletion of {logFile}");
+                                Log.Logger.Verbose($"Simulating deletion of {logFile}");
                             }
                             else
                             {
-                                Log.Logger.Information($"deleting {logFile}");
+                                Log.Logger.Verbose($"deleting {logFile}");
                                 File.Delete(logFile);
                             }
                         }
@@ -64,6 +66,30 @@ namespace LogClean
                     {
                         Log.Logger.Error(ex, "In processing exception");
                         //do not propagate exception to continue processing
+                    }
+                }
+                if (opts.EmptySubdirectoriesClean)
+                {
+                    string[] allSubdirectories = Directory.GetDirectories(opts.LogDirectory, "*.*", SearchOption.AllDirectories);
+                    string[] allSubDirectoriesByDepth = allSubdirectories
+                                                            .OrderByDescending(d => d.Count(c => c == '\\'))
+                                                            .ToArray();
+                    foreach (string dir in allSubDirectoriesByDepth)
+                    {
+                        DirectoryInfo di = new DirectoryInfo(dir);
+                        var files = di.GetFiles();
+                        if (files.Length == 0)
+                        {
+                            if (opts.SimulationMode)
+                            {
+                                Log.Logger.Verbose($"Simulating deletion of empty directory {dir}");
+                            }
+                            else
+                            {
+                                Log.Logger.Verbose($"deleting empty directory {dir}");
+                                Directory.Delete(di.FullName);
+                            }
+                        }
                     }
                 }
             }
