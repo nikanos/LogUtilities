@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -30,6 +31,7 @@ namespace LogGroup
             Log.Logger.Information($"{CurrentProgramName} Command Start".DashedLine());
             if (opts.SimulationMode)
                 Log.Logger.Information("SIMULATION MODE ON (no files will be affected)".DashedLine());
+            Log.Logger.Information($"Command Line Options: {JsonConvert.SerializeObject(opts, Formatting.Indented)}");
 
             int exitCode = (int)ExitCode.Success;
             try
@@ -38,7 +40,7 @@ namespace LogGroup
                 Validator.ValidateOptions(opts);
                 SearchOption searchOption = opts.RecursiveMode ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
                 string[] logFiles = Directory.GetFiles(opts.LogDirectory, opts.FilePattern, searchOption);
-                Log.Logger.Debug($"Found {logFiles.Length} files");
+                Log.Logger.Information($"Found {logFiles.Length} files");
                 foreach (string logFile in logFiles)
                 {
                     try
@@ -60,16 +62,16 @@ namespace LogGroup
                         string targetFile = Path.Combine(targetFolder, fi.Name);
                         if (opts.SimulationMode)
                         {
-                            Log.Logger.Information($"Simulating move of {fi.FullName} to {targetFile}");
+                            Log.Logger.Verbose($"Simulating move of {fi.FullName} to {targetFile}");
                         }
                         else
                         {
                             if (!Directory.Exists(targetFolder))
                             {
-                                Log.Logger.Information($"Creating folder {targetFolder}");
+                                Log.Logger.Verbose($"Creating folder {targetFolder}");
                                 Directory.CreateDirectory(targetFolder);
                             }
-                            Log.Logger.Information($"Moving {fi.FullName} to {targetFile}");
+                            Log.Logger.Verbose($"Moving {fi.FullName} to {targetFile}");
                             File.Move(fi.FullName, targetFile);
                         }
                     }
