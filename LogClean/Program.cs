@@ -36,41 +36,37 @@ namespace LogClean
             int exitCode = (int)ExitCode.Success;
             int cleanFileCounter = 0;
             int cleanFolderCounter = 0;
+            int logFileCounter = 0;
             try
             {
                 Validator.ValidateOptions(opts);
-                SearchOption searchOption = opts.RecursiveMode ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-                string[] logFiles = Directory.GetFiles(opts.LogDirectory, opts.FilePattern, searchOption);
-                Log.Logger.Information($"Found {logFiles.Length} files");
-                foreach (string logFile in logFiles)
+                if (opts.RecursiveMode)
                 {
-                    try
+                    string[] allSubdirectories = Directory.GetDirectories(opts.LogDirectory, "*.*", SearchOption.AllDirectories);
+                    foreach (string dir in allSubdirectories)
                     {
-                        Log.Logger.Verbose($"Processing {logFile}");
-                        FileInfo fi = new FileInfo(logFile);
-                        TimeSpan ts = DateTime.UtcNow - fi.LastWriteTimeUtc;
-                        int daysOld = (int)ts.TotalDays;
-                        Log.Logger.Verbose($"{logFile} was modified {daysOld} day(s) ago");
-                        if (daysOld > opts.KeepDays)
+                        string[] dirLogFiles = Directory.GetFiles(dir, opts.FilePattern, SearchOption.TopDirectoryOnly);
+                        Log.Logger.Information($"Found {dirLogFiles.Length} files in {dir}");
+                        logFileCounter += dirLogFiles.Length;
+                        foreach (string logFile in dirLogFiles)
                         {
-                            if (opts.SimulationMode)
-                            {
-                                Log.Logger.Verbose($"Simulating deletion of {logFile}");
-                            }
-                            else
-                            {
-                                Log.Logger.Verbose($"deleting {logFile}");
-                                File.Delete(logFile);
-                            }
-                            cleanFileCounter++;
+                            if (DeleteLogFileIfNeeded(logFile, opts))
+                                cleanFileCounter++;
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Log.Logger.Error(ex, "In processing exception");
-                        //do not propagate exception to continue processing
-                    }
                 }
+                string[] logFiles = Directory.GetFiles(opts.LogDirectory, opts.FilePattern, SearchOption.TopDirectoryOnly);
+                Log.Logger.Information($"Found {logFiles.Length} files in {opts.LogDirectory}");
+                logFileCounter += logFiles.Length;
+                foreach (string logFile in logFiles)
+                {
+                    if (DeleteLogFileIfNeeded(logFile, opts))
+                        cleanFileCounter++;
+                }
+
+                if (opts.RecursiveMode)
+                    Log.Logger.Information($"Found total {logFileCounter} files in {opts.LogDirectory} and subdirectories");
+
                 if (opts.EmptySubdirectoriesClean)
                 {
                     string[] allSubdirectories = Directory.GetDirectories(opts.LogDirectory, "*.*", SearchOption.AllDirectories);
@@ -108,7 +104,7 @@ namespace LogClean
                 exitCode = (int)ExitCode.ApplicationError;
             }
 
-            if(opts.SimulationMode)
+            if (opts.SimulationMode)
             {
                 Log.Logger.Information($"Simulated deletion of {cleanFileCounter} file(s) and {cleanFolderCounter} folder(s)");
             }
@@ -119,6 +115,39 @@ namespace LogClean
             Log.Logger.Information($"{CurrentProgramName} Command End".DashedLine());
             return exitCode;
         }
+
+        private static bool DeleteLogFileIfNeeded(string logFile, Options opts)
+        {
+            try
+            {
+                Log.Logger.Verbose($"Processing {logFile}");
+                FileInfo fi = new FileInfo(logFile);
+                TimeSpan ts = DateTime.UtcNow - fi.LastWriteTimeUtc;
+                int daysOld = (int)ts.TotalDays;
+                Log.Logger.Verbose($"{logFile} was modified {daysOld} day(s) ago");
+                if (daysOld > opts.KeepDays)
+                {
+                    if (opts.SimulationMode)
+                    {
+                        Log.Logger.Verbose($"Simulating deletion of {logFile}");
+                    }
+                    else
+                    {
+                        Log.Logger.Verbose($"deleting {logFile}");
+                        File.Delete(logFile);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Logger.Error(ex, "In processing exception");
+                //do not propagate exception
+            }
+            return false;
+        }
+
         static int HandleParseError(IEnumerable<Error> errors)
         {
             if (errors.Any(x => x is HelpRequestedError || x is VersionRequestedError))
